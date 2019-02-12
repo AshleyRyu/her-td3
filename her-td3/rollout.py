@@ -42,6 +42,23 @@ class RolloutWorker:
         self.reset_all_rollouts()
         self.clear_history()
 
+        ############################################ hrl multi agent ###################################################
+        self.initial_high_goal_gt_tilda = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)  # observations
+        self.initial_high_goal_gt = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)
+        self.high_level_train_step = 10
+        self.discount = 0.99
+        self.total_timestep = 0
+        ################################################################################################################
+    ##
+    def reset_rollout(self, i):
+        """Resets the `i`-th rollout environment, re-samples a new goal, and updates the `initial_o`
+        and `g` arrays accordingly.
+        """
+        obs = self.envs[i].reset()
+        self.initial_o[i] = obs['observation']
+        self.initial_ag[i] = obs['achieved_goal']
+        self.g[i] = obs['desired_goal']
+    ##    
     def reset_all_rollouts(self):
         self.obs_dict = self.venv.reset()
         self.initial_o = self.obs_dict['observation']
@@ -65,6 +82,28 @@ class RolloutWorker:
         dones = []
         info_values = [np.empty((self.T - 1, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
         Qs = []
+
+        ####################### hrl #############################
+
+        Rt_high_sum = np.zeros((self.rollout_batch_size, 1), np.float32)
+        total_timestep = 1
+        high_goal_gt = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)
+        #high_goal_gt_tilda = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)
+        high_old_obj_st = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)
+
+        u_temp = np.empty((self.rollout_batch_size, self.dims['u']), np.float32)
+
+        low_nn_at = np.zeros((self.high_level_train_step*self.rollout_batch_size, self.dims['u']),
+                                  np.float32).reshape(self.rollout_batch_size, self.high_level_train_step, self.dims['u'])
+        low_nn_st = np.zeros((self.high_level_train_step*self.rollout_batch_size, self.dims['o']),
+                                  np.float32).reshape(self.rollout_batch_size, self.high_level_train_step, self.dims['o'])
+        intrinsic_reward = np.zeros((self.rollout_batch_size, 1), np.float32)
+
+        high_goal_gt[:] = self.initial_high_goal_gt
+        #high_goal_gt_tilda[:] = self.initial_high_goal_gt_tilda
+
+        ##########################################################
+
         for t in range(self.T):
             policy_output = self.policy.get_actions(
                 o, ag, self.g,
@@ -82,19 +121,25 @@ class RolloutWorker:
             if u.ndim == 1:
                 # The non-batched case should still have a reasonable shape.
                 u = u.reshape(1, -1)
+            
+            try:
 
-            o_new = np.empty((self.rollout_batch_size, self.dims['o']))
-            ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
-            success = np.zeros(self.rollout_batch_size)
-            # print("Rollout. o_new={}, ag_new={},success={}".format(o_new,ag_new,success))
-            # compute new states and observations
-            obs_dict_new, _, done, info = self.venv.step(u)
-            # print("HERE")
-            # print("#########Debug##########")
-            o_new = obs_dict_new['observation']
-            # print("observation high : {}".format(o_new))
-            ag_new = obs_dict_new['achieved_goal']
-            success = np.array([i.get('is_success', 0.0) for i in info])
+                o_new = np.empty((self.rollout_batch_size, self.dims['o']))
+                ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
+                success = np.zeros(self.rollout_batch_size)
+                # compute new states and observations
+                obs_dict_new, _, done, info = self.venv.step(u)
+                o_new = obs_dict_new['observation']
+                ag_new = obs_dict_new['achieved_goal']
+                success = np.array([i.get('is_success', 0.0) for i in info])
+            # o_new = np.empty((self.rollout_batch_size, self.dims['o']))
+            # ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
+            # success = np.zeros(self.rollout_batch_size)
+            # # compute new states and observations
+            # obs_dict_new, _, done, info = self.venv.step(u)
+            # o_new = obs_dict_new['observation']
+            # ag_new = obs_dict_new['achieved_goal']
+            # success = np.array([i.get('is_success', 0.0) for i in info])
 
             if any(done):
                 # here we assume all environments are done is ~same number of steps, so we terminate rollouts whenever any of the envs returns done
@@ -102,7 +147,7 @@ class RolloutWorker:
                 # after a reset
                 break
 
-            for i, info_dict in enumerate(info):
+            for i, info_dict in enumerate(info): # HER를 위해 indexing 하는 부분, 재윤님 코드엔 없다
                 for idx, key in enumerate(self.info_keys):
                     info_values[idx][t, i] = info[i][key]
 

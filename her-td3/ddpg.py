@@ -221,6 +221,7 @@ class DDPG(object):
             if update_stats:
                 # add transitions to normalizer to normalize the demo data as well
                 episode['o_2'] = episode['o'][:, 1:, :]
+                print("HHEERREE, {}".format(episode['o_2']))
                 episode['ag_2'] = episode['ag'][:, 1:, :]
                 num_normalizing_transitions = transitions_in_episode_batch(episode)
                 transitions = self.sample_transitions(episode, num_normalizing_transitions)
@@ -402,13 +403,14 @@ class DDPG(object):
             ##A.R
             ##Compute the target Q value, Q1과 Q2중에 min값을 사용한다.
 
-            # target1_Q_pi_tf = self.target1.Q_pi_tf ##A.R policy training
-            # target2_Q_pi_tf = self.target2.Q_pi_tf ##A.R
+            target1_Q_pi_tf = self.target1.Q_pi_tf ##A.R policy training
+            target2_Q_pi_tf = self.target2.Q_pi_tf ##A.R
             # target_Q_pi_tf = tf.minimum(target1_Q_pi_tf, target2_Q_pi_tf)
-            target1_Q_tf = self.target1.Q_tf ##A.R policy training
-            target2_Q_tf = self.target2.Q_tf ##A.R
+            # target1_Q_tf = self.target1.Q_tf ##A.R policy training
+            # target2_Q_tf = self.target2.Q_tf ##A.R
             # print('target1={}/////target2={}'.format(target1_Q_tf,target2_Q_tf))
-            target_Q_tf = tf.minimum(target1_Q_tf, target2_Q_tf)
+            target_Q_pi_tf = tf.minimum(target1_Q_pi_tf, target2_Q_pi_tf)
+            # target_Q_tf = tf.minimum(target1_Q_tf, target2_Q_tf)
             # print("{}///{}///{}".format(target1_Q_pi_tf,target2_Q_pi_tf,tf.minimum(target1_Q_pi_tf, target2_Q_pi_tf)))
             ####
             #TD3에서 빠진 코드 :target_Q = reward + (done * discount * target_Q).detach()(L109) ->L428에서 해주고 clip한다
@@ -417,7 +419,9 @@ class DDPG(object):
             # for policy training, Q_pi_tf = nn(input_Q, [self.hidden] * self.layers + [1])
             # target_Q_pi_tf = self.target.Q_pi_tf #original code
             clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
-            target_Q_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_tf, *clip_range)
+            target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_pi_tf, *clip_range)
+            # target_Q_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_tf, *clip_range)
+            # target_Q_pi_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_tf, *clip_range)
             # self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
             ##
             # current_Q1, current_Q2 = self.critic(state, action)
@@ -452,8 +456,8 @@ class DDPG(object):
                 # print("num_demo = {}".format(nd))
                 target1_Q_pi_tf = self.target1.Q_pi_tf ##A.R policy training
                 target2_Q_pi_tf = self.target2.Q_pi_tf ##A.R
-                tf.print(target1_Q_pi_tf, [target1_Q_pi_tf])
-                tf.print(target2_Q_pi_tf, [target2_Q_pi_tf])
+                # tf.print(target1_Q_pi_tf, [target1_Q_pi_tf])
+                # tf.print(target2_Q_pi_tf, [target2_Q_pi_tf])
                 # print(target2_Q_pi_tf)
                 target_Q_pi_tf = tf.minimum(target1_Q_pi_tf, target2_Q_pi_tf)
 
