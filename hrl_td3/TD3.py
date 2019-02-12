@@ -79,20 +79,20 @@ class TD3(object):
         self.actor = Actor(state_dim, action_dim, max_action).to(device)
         self.actor_target = Actor(state_dim, action_dim, max_action).to(device)
         self.actor_target.load_state_dict(self.actor.state_dict())
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=0.0001)
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=0.0001) #j lr 설정
 
         self.critic = Critic(state_dim, action_dim).to(device)
         self.critic_target = Critic(state_dim, action_dim).to(device)
         self.critic_target.load_state_dict(self.critic.state_dict())
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=0.003)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=0.003) #j lr 설정
 
         self.max_action = max_action
 
         #jangikim
         self.default_clip_range = 5
-        self.scaler = StandardScaler(with_mean=False, with_std =False)
+        self.scaler = StandardScaler(with_mean=False, with_std =False) ## 뭘위한 ?
 
-    def my_loss(self, q1, q2, target):
+    def my_loss(self, q1, q2, target): #j 만들어준 함수 값 너무 커서 나눠줌...........
         t1 = (q1 - target)/10e30
         t2 = (q2 -target)/10e30
         loss = t1 + t2
@@ -106,12 +106,12 @@ class TD3(object):
         t_o = o_stats.normalize(tf.convert_to_tensor(state))
         n_o = t_o.eval()
         '''
-        state = torch.FloatTensor(state.reshape(1, -1)).to(device)
+        state = torch.FloatTensor(state.reshape(1, -1)).to(device) ## 원래코드랑 같음
         #state = torch.FloatTensor(n_o.reshape(1, -1)).to(device)
         return self.actor(state).cpu().data.numpy().flatten()
 
     #def get_Q_value(self, o_stats, o, u, policy_noise=0.2, noise_clip=0.5):
-    def get_Q_value(self, o, u, policy_noise=0.2, noise_clip=0.5):
+    def get_Q_value(self, o, u, policy_noise=0.2, noise_clip=0.5): #j 만들어준 함수
         # Compute the target Q value
         '''
         t_o = o_stats.normalize(tf.convert_to_tensor(o))
@@ -121,7 +121,7 @@ class TD3(object):
         #state = torch.FloatTensor(n_o.reshape(1, -1)).to(device)
 
         action = torch.FloatTensor(u.reshape(1, -1)).to(device)
-        current_Q1, current_Q2 = self.critic(state,action)
+        current_Q1, current_Q2 = self.critic(state,action) ## 왜 next_state거 아니지?
         current_Q = torch.min(current_Q1, current_Q2)
         #current_Q = torch.max(current_Q1, current_Q2)
         #return target_Q
@@ -167,7 +167,7 @@ class TD3(object):
 
             # Compute critic loss
             #critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
-            critic_loss = self.my_loss(current_Q1, current_Q2, target_Q)
+            critic_loss = self.my_loss(current_Q1, current_Q2, target_Q) #j 값 너무 커서 나눠준 부분
 
             # Optimize the critic
             self.critic_optimizer.zero_grad()

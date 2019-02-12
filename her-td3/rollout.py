@@ -103,75 +103,228 @@ class RolloutWorker:
         #high_goal_gt_tilda[:] = self.initial_high_goal_gt_tilda
 
         ##########################################################
+        
+        # original code
+        # for t in range(self.T):
+        #     policy_output = self.policy.get_actions(
+        #         o, ag, self.g,
+        #         compute_Q=self.compute_Q,
+        #         noise_eps=self.noise_eps if not self.exploit else 0.,
+        #         random_eps=self.random_eps if not self.exploit else 0.,
+        #         use_target_net=self.use_target_net)
+
+        #     if self.compute_Q:
+        #         u, Q = policy_output
+        #         Qs.append(Q)
+        #     else:
+        #         u = policy_output
+
+        #     if u.ndim == 1:
+        #         # The non-batched case should still have a reasonable shape.
+        #         u = u.reshape(1, -1)
+            
+        #     try:
+
+        #         o_new = np.empty((self.rollout_batch_size, self.dims['o']))
+        #         ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
+        #         success = np.zeros(self.rollout_batch_size)
+        #         # compute new states and observations
+        #         obs_dict_new, _, done, info = self.venv.step(u)
+        #         o_new = obs_dict_new['observation']
+        #         ag_new = obs_dict_new['achieved_goal']
+        #         success = np.array([i.get('is_success', 0.0) for i in info])
+
+        #     if any(done):
+        #         # here we assume all environments are done is ~same number of steps, so we terminate rollouts whenever any of the envs returns done
+        #         # trick with using vecenvs is not to add the obs from the environments that are "done", because those are already observations
+        #         # after a reset
+        #         break
+
+        #     for i, info_dict in enumerate(info): # HER를 위해 indexing 하는 부분, 재윤님 코드엔 없다
+        #         for idx, key in enumerate(self.info_keys):
+        #             info_values[idx][t, i] = info[i][key]
+
+        #     if np.isnan(o_new).any():
+        #         self.logger.warn('NaN caught during rollout generation. Trying again...')
+        #         self.reset_all_rollouts()
+        #         return self.generate_rollouts()
+
+        #     dones.append(done)
+        #     obs.append(o.copy())
+        #     # print("############## obs = {}".format(obs))
+        #     achieved_goals.append(ag.copy())
+        #     successes.append(success.copy())
+        #     acts.append(u.copy())
+        #     goals.append(self.g.copy())
+        #     o[...] = o_new
+        #     ag[...] = ag_new
+        # obs.append(o.copy())
+        # achieved_goals.append(ag.copy())
+
+        # episode = dict(o=obs,
+        #                u=acts,
+        #                g=goals,
+        #                ag=achieved_goals)
+        # for key, value in zip(self.info_keys, info_values):
+        #     episode['info_{}'.format(key)] = value
+
+        # # stats
+        # successful = np.array(successes)[-1, :]
+        # assert successful.shape == (self.rollout_batch_size,)
+        # success_rate = np.mean(successful)
+        # self.success_history.append(success_rate)
+        # if self.compute_Q:
+        #     self.Q_history.append(np.mean(Qs))
+        # self.n_episodes += self.rollout_batch_size
+
+        # return convert_episode_to_batch_major(episode)
 
         for t in range(self.T):
-            policy_output = self.policy.get_actions(
-                o, ag, self.g,
-                compute_Q=self.compute_Q,
-                noise_eps=self.noise_eps if not self.exploit else 0.,
-                random_eps=self.random_eps if not self.exploit else 0.,
-                use_target_net=self.use_target_net)
+            #print_point
+            #print("cont t : ", t)
+            #print("cont total_timestep : ", total_timestep)
 
-            if self.compute_Q:
-                u, Q = policy_output
-                Qs.append(Q)
-            else:
-                u = policy_output
+            o_new = np.empty((self.rollout_batch_size, self.dims['o']))
+            ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
+            success = np.zeros(self.rollout_batch_size)
+            reward_new = np.zeros(self.rollout_batch_size)
+            done_new = np.zeros(self.rollout_batch_size)
 
-            if u.ndim == 1:
-                # The non-batched case should still have a reasonable shape.
-                u = u.reshape(1, -1)
-            
-            try:
+            # compute new states and observations
+            for i in range(self.rollout_batch_size):
+                #print_point
+                #print(" i : ", i)
 
-                o_new = np.empty((self.rollout_batch_size, self.dims['o']))
-                ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
-                success = np.zeros(self.rollout_batch_size)
-                # compute new states and observations
-                obs_dict_new, _, done, info = self.venv.step(u)
-                o_new = obs_dict_new['observation']
-                ag_new = obs_dict_new['achieved_goal']
-                success = np.array([i.get('is_success', 0.0) for i in info])
-            # o_new = np.empty((self.rollout_batch_size, self.dims['o']))
-            # ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
-            # success = np.zeros(self.rollout_batch_size)
-            # # compute new states and observations
-            # obs_dict_new, _, done, info = self.venv.step(u)
-            # o_new = obs_dict_new['observation']
-            # ag_new = obs_dict_new['achieved_goal']
-            # success = np.array([i.get('is_success', 0.0) for i in info])
+                policy_output = self.policy.get_low_actions(
+                    # o, ag, self.g,
+                    o[i], ag[i], high_goal_gt[i],
+                    compute_Q=self.compute_Q,
+                    noise_eps=self.noise_eps if not self.exploit else 0.,
+                    random_eps=self.random_eps if not self.exploit else 0.,
+                    use_target_net=self.use_target_net)
+                if self.compute_Q:
+                    # u, Q = policy_output
+                    u = policy_output
+                    ## print_point
+                    #print(" self.compute_Q u : ", u)
+                    Q = self.policy.Get_Q_value(o[i], high_goal_gt[i], u)
+                    Qs.append(Q)
+                else:
+                    u = policy_output
+                    ## print_point
+                    #print(" self.compute_Q else u : ", u)
 
-            if any(done):
-                # here we assume all environments are done is ~same number of steps, so we terminate rollouts whenever any of the envs returns done
-                # trick with using vecenvs is not to add the obs from the environments that are "done", because those are already observations
-                # after a reset
-                break
+                if u.ndim == 1:
+                    # The non-batched case should still have a reasonable shape.
+                    u = u.reshape(1, -1)
 
-            for i, info_dict in enumerate(info): # HER를 위해 indexing 하는 부분, 재윤님 코드엔 없다
-                for idx, key in enumerate(self.info_keys):
-                    info_values[idx][t, i] = info[i][key]
+                try:
+                    # We fully ignore the reward here because it will have to be re-computed
+                    # for HER.
+                    # curr_o_new, _, _, info = self.envs[i].step(u[i])
+                    ##################################### hrl ###############################
+                    #curr_o_new, reward, done, info = self.envs[i].step(u[i])  # jangikim
+                    #print("u.reshape(4,)", u.reshape(4,))
+                    curr_o_new, reward, done, info = self.envs[i].step(u.reshape(4,))  # jangikim
+                    #########################################################################
+                    if 'is_success' in info:
+                        success[i] = info['is_success']
+                    o_new[i] = curr_o_new['observation']
+                    ag_new[i] = curr_o_new['achieved_goal']
+                    #jangikim
+                    reward_new[i] = reward
 
+                    ## print_point
+                    #print(" curr_o_new [0] : ".format(i), curr_o_new)
+
+                    #done_new[i] = done
+                    #if success[i] == 1 or done==1:
+
+                    if success[i] == 1:
+                    #    done_new[i] = 1
+                        print("done_new[{0}] : ".format(i), 1)
+                    #else:
+                    #    done_new[i] = 0
+
+                    #done_new[i] = 0 if t + 1 == self.T else float(done)
+                    done_new[i] = 0 if total_timestep == self.T else float(done)
+
+                    for idx, key in enumerate(self.info_keys):
+                        info_values[idx][t, i] = info[key]
+                    if self.render:
+                        self.envs[i].render()
+
+                except MujocoException as e:
+                    return self.generate_rollouts()
+
+                low_nn_at[i][t % self.high_level_train_step] = u
+                low_nn_st[i][t % self.high_level_train_step] = o_new[i]
+                Rt_high_sum[i] += reward_new[i]
+
+                if total_timestep % self.high_level_train_step == 0:
+
+
+                    high_goal_gt[i] = self.policy.get_high_goal_gt(o[i], ag[i], self.g[i],
+                                                                   compute_Q=self.compute_Q,
+                                                                   noise_eps=self.noise_eps if not self.exploit else 0.,
+                                                                   random_eps=self.random_eps if not self.exploit else 0.,
+                                                                   use_target_net=self.use_target_net)
+                    '''
+                    high_goal_gt_tilda[i] = self.policy.get_high_goal_gt_tilda(high_old_obj_st[i], ag[i], self.g[i],
+                                                                           o_new[i],
+                                                                           low_nn_st[i],
+                                                                           low_nn_at[i])
+                    '''
+                    self.policy.update_meta_controller(self.g[i],
+                                                       Rt_high_sum[i] * 0.1,
+                                                       done_new[i],
+                                                       low_nn_st[i],
+                                                       low_nn_at[i],
+                                                       int((self.total_timestep + 1) / self.high_level_train_step),
+                                                       ag[i])
+
+                    high_old_obj_st[i] = o_new[i]
+                    low_nn_at[i] = np.zeros((self.high_level_train_step, self.dims['u']), np.float32)
+                    low_nn_st[i] = np.zeros((self.high_level_train_step, self.dims['o']), np.float32)
+                    Rt_high_sum[i] = 0
+                else:
+                    high_goal_gt[i] = o[i] + high_goal_gt[i] - o_new[i]
+
+                u_temp[i] = u
+                #temp_test = (t % self.high_level_train_step)
+                intrinsic_reward[i] = -LA.norm(o[i] + high_goal_gt[i] - o_new[i])
+
+                self.policy.update_controller(o[i], o_new[i], high_goal_gt[i], u, intrinsic_reward[i],
+                                              done_new[i],
+                                              total_timestep)
+
+            total_timestep += 1
+            self.total_timestep += 1
             if np.isnan(o_new).any():
                 self.logger.warn('NaN caught during rollout generation. Trying again...')
                 self.reset_all_rollouts()
                 return self.generate_rollouts()
 
-            dones.append(done)
             obs.append(o.copy())
-            # print("############## obs = {}".format(obs))
             achieved_goals.append(ag.copy())
             successes.append(success.copy())
-            acts.append(u.copy())
+            #acts.append(u.copy())
+            acts.append(u_temp.copy())
             goals.append(self.g.copy())
             o[...] = o_new
             ag[...] = ag_new
+
         obs.append(o.copy())
         achieved_goals.append(ag.copy())
-
+        self.initial_o[:] = o
+        ########################## hrl #########################
+        self.initial_high_goal_gt[:] = high_goal_gt
+        #self.initial_high_goal_gt_tilda[:] = high_goal_gt_tilda
+        ########################################################
         episode = dict(o=obs,
-                       u=acts,
-                       g=goals,
-                       ag=achieved_goals)
+                   u=acts,
+                   g=goals,
+                   ag=achieved_goals)
         for key, value in zip(self.info_keys, info_values):
             episode['info_{}'.format(key)] = value
 
@@ -183,6 +336,7 @@ class RolloutWorker:
         if self.compute_Q:
             self.Q_history.append(np.mean(Qs))
         self.n_episodes += self.rollout_batch_size
+
 
         return convert_episode_to_batch_major(episode)
 
@@ -217,4 +371,10 @@ class RolloutWorker:
             return [(prefix + '/' + key, val) for key, val in logs]
         else:
             return logs
+## added, jykim
+    def seed(self, seed):
+        """Seeds each environment with a distinct seed derived from the passed in global seed.
+        """
+        for idx, env in enumerate(self.envs):
+            env.seed(seed + 1000 * idx)
 
