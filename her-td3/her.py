@@ -11,7 +11,8 @@ from baselines.common.mpi_moments import mpi_moments
 import baselines.her.experiment.config as config
 from baselines.her.rollout import RolloutWorker
 
-import gym #jw
+# import gym #jw
+# file spinoffed from train.py
 
 def mpi_average(value):
     if not isinstance(value, list):
@@ -46,8 +47,6 @@ def train(*, env_name, policy, rollout_worker, evaluator,
             for _ in range(n_batches):
                 policy.train()
                 # env.render() #jw
-
-
             policy.update_target_net()
 
         # test
@@ -120,8 +119,6 @@ def learn(*, network, env, total_timesteps,
     params = config.DEFAULT_PARAMS
     env_name = env.specs[0].id
     params['env_name'] = env_name
-    print(env_name)
-    
     params['replay_strategy'] = replay_strategy
     if env_name in config.DEFAULT_ENV_PARAMS:
         params.update(config.DEFAULT_ENV_PARAMS[env_name])  # merge env-specific parameters in

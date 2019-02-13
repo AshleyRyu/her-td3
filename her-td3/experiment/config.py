@@ -7,8 +7,13 @@ from baselines.her.ddpg import DDPG
 from baselines.her.her_sampler import make_sample_her_transitions
 from baselines.bench.monitor import Monitor
 
+# DEFAULT_ENV_PARAMS = {
+#     'FetchReach-v1': {
+#         'n_cycles': 10,
+#     },
+# }
 DEFAULT_ENV_PARAMS = {
-    'FetchReach-v1': {
+    'FetchPush-v1': {
         'n_cycles': 10,
     },
 }

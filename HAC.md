@@ -2,7 +2,7 @@
 
 UVFAs used will be in the form of feed-forward neural networks. UVFAs are important for learning goal-conditioned policies because they can potentially generalize Q-values from certain regions of the (state, goal, action) tuple space to other regions of the tuple space.
 
-![1550042407376](1550042407376.png)
+![1550042407376](./image/1550042407376.png)
 
 2. HER
 

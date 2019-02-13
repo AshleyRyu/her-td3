@@ -134,9 +134,7 @@ class DDPG(object):
             '''
             g = g.reshape(*g_shape)
         o = np.clip(o, -self.clip_obs, self.clip_obs)
-        # o1 = np.clip(o1, -self.clip_obs, self.clip_obs) #A.R
         g = np.clip(g, -self.clip_obs, self.clip_obs)
-        # return o, o1, g
         return o, g
 
     def step(self, obs):
@@ -148,7 +146,6 @@ class DDPG(object):
     # def get_actions(self, o, o1, ag, g, noise_eps=0., random_eps=0., use_target_net=False, ##o1이 target 네트워크
     def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False,
                     compute_Q=False):
-        # o, o1, g = self._preprocess_og(o, o1, ag, g) ##
         o, g = self._preprocess_og(o, ag, g) 
         policy = self.target if use_target_net else self.main
         # values to compute
@@ -336,7 +333,6 @@ class DDPG(object):
 
     def _global_vars(self, scope):
         res = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope + '/' + scope)
-        # print("DEBUG, {}".format(res))
         
         return res
 
@@ -403,44 +399,23 @@ class DDPG(object):
             ##A.R
             ##Compute the target Q value, Q1과 Q2중에 min값을 사용한다.
 
-            target1_Q_pi_tf = self.target1.Q_pi_tf ##A.R policy training
-            target2_Q_pi_tf = self.target2.Q_pi_tf ##A.R
-            # target_Q_pi_tf = tf.minimum(target1_Q_pi_tf, target2_Q_pi_tf)
-            # target1_Q_tf = self.target1.Q_tf ##A.R policy training
-            # target2_Q_tf = self.target2.Q_tf ##A.R
-            # print('target1={}/////target2={}'.format(target1_Q_tf,target2_Q_tf))
-            target_Q_pi_tf = tf.minimum(target1_Q_pi_tf, target2_Q_pi_tf)
-            # target_Q_tf = tf.minimum(target1_Q_tf, target2_Q_tf)
-            # print("{}///{}///{}".format(target1_Q_pi_tf,target2_Q_pi_tf,tf.minimum(target1_Q_pi_tf, target2_Q_pi_tf)))
+            target1_Q_tf = self.target1.Q_tf ##A.R policy training
+            target2_Q_tf = self.target2.Q_tf ##A.R
+            target_Q_tf = tf.minimum(target1_Q_tf, target2_Q_tf)
             ####
             #TD3에서 빠진 코드 :target_Q = reward + (done * discount * target_Q).detach()(L109) ->L428에서 해주고 clip한다
-
-            # loss functions
-            # for policy training, Q_pi_tf = nn(input_Q, [self.hidden] * self.layers + [1])
-            # target_Q_pi_tf = self.target.Q_pi_tf #original code
             clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
-            target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_pi_tf, *clip_range)
-            # target_Q_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_tf, *clip_range)
-            # target_Q_pi_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_tf, *clip_range)
-            # self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
-            ##
-            # current_Q1, current_Q2 = self.critic(state, action)
-
-            # for critic training, Q_tf = nn(input_Q, [self.hidden] * self.layers + [1], reuse=True)
-            # target_Q_pi_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_tf, *clip_range) #original code
-            
-            # self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf)) #critic taining 
-            
+            # target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_pi_tf, *clip_range)
+            target_Q_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_tf, *clip_range)
+  
             ## Get current Q estimates, for critic Q
             current_Q1 = self.main.Q_tf ##A.R
             current_Q2 = self.main.Q_tf
             # print("Q1={}".format(current_Q1))
 
             ## Compute critic loss
-            ## Torch => critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q) 
             self.Q_loss_tf = tf.losses.mean_squared_error(current_Q1, target_Q_tf)+ tf.losses.mean_squared_error(current_Q2,target_Q_tf)
             # self.Q_loss_tf = tf.losses.mean_squared_error(current_Q1, target_Q_tf)+ tf.losses.mean_squared_error(current_Q2,target_Q_tf)
-            # print("critic_loss ={}".format(self.Q_loss_tf))
 
             Q_grads_tf = tf.gradients(self.Q_loss_tf, self._vars('main/Q'))
             assert len(self._vars('main/Q')) == len(Q_grads_tf)
@@ -453,18 +428,16 @@ class DDPG(object):
 
             # ## Delayed policy updates
             if nd % self.td3_policy_freq == 0:
-                # print("num_demo = {}".format(nd))
+
                 target1_Q_pi_tf = self.target1.Q_pi_tf ##A.R policy training
                 target2_Q_pi_tf = self.target2.Q_pi_tf ##A.R
-                # tf.print(target1_Q_pi_tf, [target1_Q_pi_tf])
-                # tf.print(target2_Q_pi_tf, [target2_Q_pi_tf])
-                # print(target2_Q_pi_tf)
                 target_Q_pi_tf = tf.minimum(target1_Q_pi_tf, target2_Q_pi_tf)
 
                 # target_Q_pi_tf = self.target.Q_pi_tf
                 clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
                 target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_pi_tf, *clip_range)
                 self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
+                
                 # Compute actor loss
                 if self.bc_loss ==1 and self.q_filter == 1 : # train with demonstrations and use bc_loss and q_filter both
                     maskMain = tf.reshape(tf.boolean_mask(self.main.Q_tf > self.main.Q_pi_tf, mask), [-1]) #where is the demonstrator action better than actor action according to the critic? choose those samples only
@@ -498,12 +471,6 @@ class DDPG(object):
                 self.pi_grads_vars_tf = zip(pi_grads_tf, self._vars('main/pi'))
                 self.pi_grad_tf = flatten_grads(grads=pi_grads_tf, var_list=self._vars('main/pi'))
 
-                # Update the frozen target models
-            ## torch code
-                # for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
-                #     target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
-                
-
                 self.main_vars = self._vars('main/Q') + self._vars('main/pi')
                 self.target1_vars = self._vars('target1/Q') + self._vars('target1/pi') ##A.R
                 self.target2_vars = self._vars('target2/Q') + self._vars('target2/pi') ##A.R
@@ -513,14 +480,25 @@ class DDPG(object):
                     target_vars = self.target2_vars
                 # self.target_vars = self._vars('target/Q') + self._vars('target/pi') #original
                 self.stats_vars = self._global_vars('o_stats') + self._global_vars('g_stats')
-                self.init_target_net_op = list(
+                # self.init_target_net_op = list(
+                #     map(lambda v: v[0].assign(v[1]), zip(self.target1_vars, self.main_vars)))
+                # self.init_target_net_op = list(
+                #     map(lambda v: v[0].assign(v[1]), zip(self.target2_vars, self.main_vars)))
+
+                # self.update_target_net_op = list(
+                #     map(lambda v: v[0].assign(self.polyak * v[0] + (1. - self.polyak) * v[1]), zip(target_vars, self.main_vars)))
+                # self.update_target_net_op = list(
+                #     map(lambda v: v[0].assign(self.polyak * v[0] + (1. - self.polyak) * v[1]), zip(target_vars, self.main_vars)))
+                self.init_target1_net_op = list(
                     map(lambda v: v[0].assign(v[1]), zip(self.target1_vars, self.main_vars)))
-                self.init_target_net_op = list(
+                self.init_target2_net_op = list(
                     map(lambda v: v[0].assign(v[1]), zip(self.target2_vars, self.main_vars)))
 
                 self.update_target_net_op = list(
                     map(lambda v: v[0].assign(self.polyak * v[0] + (1. - self.polyak) * v[1]), zip(target_vars, self.main_vars)))
-                self.update_target_net_op = list(
+                self.update_target1_net_op = list(
+                    map(lambda v: v[0].assign(self.polyak * v[0] + (1. - self.polyak) * v[1]), zip(target_vars, self.main_vars)))
+                self.update_target2_net_op = list(
                     map(lambda v: v[0].assign(self.polyak * v[0] + (1. - self.polyak) * v[1]), zip(target_vars, self.main_vars)))
 
 

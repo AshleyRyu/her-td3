@@ -58,25 +58,9 @@ class ReplayBuffer:
         """episode_batch: array(batch_size x (T or T+1) x dim_key)
         """
         batch_sizes = [len(episode_batch[key]) for key in episode_batch.keys()]
-        # print("---------------JW Debug for batchsize-----------------")
-        # print("episode_batch.keys()=")
-        # print(episode_batch.keys())
-        # print("episode_batch['o']")
-        # print(episode_batch['o'])
-        # print(f"episode_batch['o'] length = {len(episode_batch['o'][0])}")
-        # print("batch_sizes=")
-        # print(batch_sizes)
-        # print(type(batch_sizes))
-        # print("batch_sizes[0]=") 
-        # print(batch_sizes[0])
-        # print(type(batch_sizes[0]))
-        # print("np.array(batch_sizes) = ")
-        # print(np.array(batch_sizes))
-        # print("---------------JW Debug for batchsize--End---------------")
+
         assert np.all(np.array(batch_sizes) == batch_sizes[0])
-        batch_size = batch_sizes[0]
-        # print("after batch_sizes[0]=")   
-        # print(batch_size[0])     
+        batch_size = batch_sizes[0] 
         print(f"after batch_size={batch_size}")
 
         with self.lock:
