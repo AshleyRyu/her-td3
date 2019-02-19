@@ -105,7 +105,7 @@ def learn(*, network, env, total_timesteps,
     **kwargs
 ):
     
-    print("-------------------JW Debug @ her.py with baseline merge ----------------------")
+    print("-------------------JW Debug @ her.py with her-td3 ----------------------")
     override_params = override_params or {}
     if MPI is not None:
         rank = MPI.COMM_WORLD.Get_rank()

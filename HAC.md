@@ -76,6 +76,74 @@ sudo
 
 ////
 
+3.5 UMDP
+
+Dictated
+
+1. U_0 초기; U0이 학습을 책임질 목표(goal)는 UMDP가 한 단계 높은. U1에 의해 결정된다. 그러나 모든 상태가 잠재적으로 목표이기 때문에 목표 공간은 상태 공간 : G0 = S로 정의됩니다. 프레임 워크는 수준 0에서 사용되는 보상 기능에 대해 유연하지만 가장 짧은 경로 보상 기능을 사용합니다
+
+   단, 모든 상태가 잠재적으로 목표임을 감안하여 목표공간은 상태공간으로 정의한다. G0 = S. 레벨 0에서 사용하는 보상기능에 대해서는 유연한 프레임워크이지만, 다음 상태인 s0, 목표에 매핑할 경우 0의 보상이 주어지는. 최단 경로보상기능과 그렇지 않은 경우 -1: R0(s0; g) = 0; 8:0s : 0 s2g2의 포상영상을 부여하는 최단경로 정의한다. 
+
+   R은 골에 만족하면 1, 만족 못하면 0 으로 지정한다.
+
+   감가율은 골 만족하면 0이고, 만족 못하면 남아있다.
+
+   U_0의 목효는 폴리시 Pi_0를 찾기 위함이다.
+
+2. Urk 1<=  <k 일 때, 
+   계층의 나머지 부분을 나타낸다. 
+   S : Si = S처럼 같다.
+   G : 상위 레벨에서 정해진다. (top level은 task에 의해 정해진다.)
+   A : 행동 공간은 이 정책들이 다음 단계의 하위 목표 상태를 산출하여 다음을 달성할 것이기 때문에 state space이다. Ai = S
+   state transitionn function은 두개의 transition function으로 이루어져 있다.
+   ![image-20190216153645721](image/image-20190216153645721.png)
+
+   1. 첫번째 function은 subgoal testing에 사용되며 현재의 하위 수준 정책 계층 구조를 정확하게 따릅니다.
+   2. 두번째 func은 handsight tranitions를 만드는데 사용될 것. 두 번째 전환 함수에 전달 된 뒤늦은 동작 a는 다른 계층 적 동작 정책에 의해 생성되어야 한다.
+
+3. R:
+   ![image-20190216161419032](image/image-20190216161419032.png)
+   ![image-20190216161441621](image/image-20190216161441621.png)
+   ![image-20190216161518627](image/image-20190216161518627.png)
+   이 때 패널티 리워드는 subgoal testing시에만 발행된다.
+
+4. 감가율 : subgoal이 test되었거나 놓쳤거나 골을 달성했으면 0, 그 이외에는 U_orginal로부터 온다.
+   ![image-20190216163727474](image/image-20190216163727474.png)
+
+   ![image-20190216163750014](image/image-20190216163750014.png)![image-20190216163814233](image/image-20190216163814233.png)
+   U_i의 목적은 policy Pi_i를 배우는 것. weighted value func을 maximize하는 방향으로. 하기는 weighted value func
+
+   ![image-20190216164001867](image/image-20190216164001867.png)
+   
+
+3.6. HER와 붙이기
+
+사후 판단 조치는 각 수준이 실현 가능한 하위 목표 조치를 발견하는 데 도움이 되지만, 이러한 하위 목표 조치가 반드시 그 목표 달성에 도움이 되는 것은 아니다.
+
+그래서 HER를 붙임.
+
+레벨 i+1에서 i로 목표가 주어질 때, 레벨 i는 실행된 각 동작에 대한 사후 인식 조치 전환을 생성한다. H 사후판단 동작이 실행되었다고 가정하면, 이러한 전환은 [state = s_i_t, action = s_hind, reward = r_i_t, next state = s_i_t, goal = g_i_t], t가 {0, ... , H-1} 가 된다.
+
+HER을 통합하기 위해, 이러한 전환의 복사본이 하나 이상 생성되고 보상과 목표 구성요소가 지워진다.
+
+각 복사본 세트에 대해, 다음 상태 전이 요소 세트에서 새로운 목표가 선택되고 복사된 전환 집합에 목표 구성요소로 삽입된다. 새로운 목표를 반영하기 위해 리(a; s0; g) 요소도 업데이트될 것이다.
+
+ 스파 스 보상을 포함하는 이러한 전환은 UVFA 비평 함수를 자극하여 상대적으로 높은 Q 값을 이러한 전환으로 설명되는 (상태, 액션, 목표) 튜플에 할당합니다. 그런 다음 UVFA는 잠재적으로 이러한 높은 Q 값을 작업을 해결하는 데 도움이되는 작업으로 전송할 수 있습니다.
+
+
+
+////
+
+예시.
+
+조건 - agent: robot, 2 layer, subgoal horizon parameter H=5actions. Goal: learn high and low-level policy that focus on action sequences that contain no more than 5 actions.
+
+로봇은 이 반복 동안에 suboal g0을 시험하지 않을 것이라고 결정한다.
+
+The state s1(골 성공 못한 스테이트) can replace the TBD goal component in the extra hindsight transitions that were created and the reward would then be replaced with its appropriate value.
+
+
+
   수준 i는 일정 시간 lamda의 일부인 하위 목표 'a'를 제안하고, 그 목표를 달성하기 위해 사용되는 하위 수준 행동 정책 계층인 pi(i-1b)는 현재의 하위 수준 정책 계층인 pi(i-1)가 되어야 한다. 즉, 목표를 달성하기 위해 노력할 때 탐구할 수 있는 수준이 아니라 현재의 하위 단계의 정책 계층이 정확히 따라야 한다는 것이다. 우리의 실험에서, 우리는 램다 = 0.2를 설정했다.
 
 둘째, 서브 골 테스트를 실행할 때 다른 보상 기능을 사용하여 조치를 평가한다. 
